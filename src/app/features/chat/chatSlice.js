@@ -75,7 +75,7 @@ export const sendQuestionToAPI = createAsyncThunk(
       // Set isResponding to true when the API call starts
       dispatch(setIsResponding(true));
       const response = await axios.post(
-        'https://qa-azure-search.azurewebsites.net/ask',
+        'app-azuresearch-qa-emo.azurewebsites.net/ask',
         {
           query: question,
           user_id: userId, // Use dynamic userId
@@ -171,7 +171,7 @@ export const submitFeedback = createAsyncThunk(
 
     try {
       const response = await axios.post(
-        'https://qa-azure-search.azurewebsites.net/feedback',
+        'app-azuresearch-qa-emo.azurewebsites.net/feedback',
         {
           session_id: sessionId,
           user_name: userId, // Use dynamic userId for user_name
