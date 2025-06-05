@@ -1,0 +1,8 @@
+@import 'tailwindcss';
+.container {
+  transition: opacity 0.3s ease;
+}
+
+* {
+  font-family: 'Inter', sans-serif;
+}
