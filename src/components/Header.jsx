@@ -18,7 +18,7 @@ const Header = () => {
       <div className='container p-4 w-[95%] max-w-[1400px] mx-auto flex justify-between items-center'>
         <Logo />
         <h1 className='text-3xl font-semibold text-[#fcbc19]'>
-          OCM Knowledge Assistant
+          Evolve Middle Office Knowledge Assistant
         </h1>
         <div className='flex items-center gap-4'>
           <h1 className='border border-gray-100 bg-gray-100 font-semibold hover:border-[#174a7e] text-[#174a7e] cursor-pointer p-2 px-4 rounded-md flex items-center gap-2 transition-colors'>
