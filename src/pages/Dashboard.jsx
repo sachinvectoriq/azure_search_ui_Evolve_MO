@@ -6,7 +6,7 @@ import { isTokenValid } from '../utils/isTokenValid';
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { token, updateToken, loginUser } = useAuth();
+  const { token, updateToken, loginUser, storeLoginSessionId } = useAuth();
 
   useEffect(() => {
     const queryParams = new URLSearchParams(window.location.search);
@@ -21,43 +21,25 @@ const Dashboard = () => {
 
   useEffect(() => {
     const fetchUserData = async () => {
+      if (window.__hasLoggedInOnce) {
+        return; // Prevent second call in StrictMode
+      }
+      window.__hasLoggedInOnce = true;
+
       try {
-        let res;
-        if (import.meta.env.VITE_TOKEN_EXTRACT) {
-          res = await apiClient.post(import.meta.env.VITE_TOKEN_EXTRACT, {
-            token,
-          });
-          console.log('res data=> ', res.data);
-          if (res.status === 200) {
-            const { name, group } = res.data;
-            loginUser({ name, group, token });
+        // ✅ HARD-CODED USERNAME & GROUP
+        const userName = 'Test User';
+        const userGroup = 'HardCodedGroup';  // you can keep any value
+        const loginSessionId = 123456789; // bigint like value
 
-            navigate('/home');
-          }
-        } else {
-          res = await apiClient.post('/saml/token/extract', null, {
-            params: {
-              token,
-            },
-          });
-          console.log('res data=> ', res.data);
-          if (res.status === 200) {
-            const { name, group } = res.data.user_data;
-            loginUser({ name, group, token });
+        // ✅ Directly login the user with hardcoded values
+        loginUser({ name: userName, group: userGroup, token });
 
-            navigate('/home');
-          }
-        }
+        // ✅ Directly store hardcoded login session id
+        storeLoginSessionId(loginSessionId);
+        console.log('Login data logged successfully.');
 
-        // const logResponse = await apiClient.post('/pto_user_login_log', {
-        //   user_name: res.data.name
-        //     ? res.data.name
-        //     : res.data.user_data.name.toString(),
-        // });
-
-        // storeSession(logResponse.data.session_id);
-
-        // console.log('Login data logged');
+        navigate('/home');
       } catch (error) {
         console.error('Error fetching user data:', error);
         navigate('/');
@@ -65,7 +47,7 @@ const Dashboard = () => {
     };
 
     token && fetchUserData();
-  }, [token]);
+  }, [token, loginUser, navigate, updateToken, storeLoginSessionId]);
 
   return (
     <div className='min-h-screen flex items-center flex-col gap-4 justify-center'>
