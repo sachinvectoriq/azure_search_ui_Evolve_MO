@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Loader2, Eraser, AlertTriangle } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
-import { franc } from 'franc';
+import { franc } from 'franc-min';
 import {
   sendQuestionToAPI,
   setInput,
