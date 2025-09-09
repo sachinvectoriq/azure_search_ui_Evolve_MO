@@ -56,7 +56,7 @@ export const sendQuestionToAPI = createAsyncThunk(
 
     const userName = "Test User";
     // END - Change for userName here
-    const loginSessionId = 123456789;
+    const loginSessionId = "123456789"; // Changed from int to string
     const selectedLanguage = getState().chat.selectedLanguage; // Get selected language
 
     console.log("Sending question to API:", question);
@@ -199,7 +199,8 @@ export const submitFeedback = createAsyncThunk(
     //Updated
     const userName = "Test User";
 
-    const loginSessionId = 123456789;
+    const loginSessionId = "123456789"; // Changed from int to string
+
 
     const message = messages.find((msg) => msg.id === messageId);
     if (!message) {
