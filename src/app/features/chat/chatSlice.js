@@ -142,6 +142,7 @@ export const sendQuestionToAPI = createAsyncThunk(
         }
 
         try {
+          const queryLanguage = mapLanguageForAPI(selectedLanguage);
           const logData = {
             chat_session_id: sessionId,
             user_id: userId,
@@ -151,6 +152,7 @@ export const sendQuestionToAPI = createAsyncThunk(
             citations:
               data.citations.map((c) => c.title).join(", ") || "No citations", // Format citations as string
             login_session_id: loginSessionId, // Use the login_session_id from auth slice
+            query_language: queryLanguage // Added new parameter here
           };
 
           await apiClient.post("/log", logData); // <--- NEW API call for audit
@@ -216,6 +218,7 @@ export const submitFeedback = createAsyncThunk(
       "Unknown query";
 
     try {
+      const queryLanguage = mapLanguageForAPI(getState().chat.selectedLanguage);
       const response = await axios.post(
         "https://app-azuresearch-qa-emo.azurewebsites.net/feedback",
         {
@@ -229,6 +232,7 @@ export const submitFeedback = createAsyncThunk(
           feedback: text,
           login_session_id: loginSessionId,
           user_id: userId,
+          query_language: queryLanguage 
         },
         {
           headers: {
