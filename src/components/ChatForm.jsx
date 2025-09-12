@@ -1,9 +1,7 @@
 // src/components/ChatForm.jsx
-
 import { useState, useRef, useEffect } from 'react';
 import { Send, Loader2, Eraser } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
-
 import {
   sendQuestionToAPI,
   setInput,
@@ -16,19 +14,7 @@ const ChatForm = () => {
   const dispatch = useDispatch();
   const { input, isResponding } = useSelector((state) => state.chat);
   const [text, setText] = useState(input);
-
   const textareaRef = useRef(null);
-
-  const handleClearChat = () => {
-    dispatch(clearIfInputEmpty());
-    dispatch(resetSessionId());
-    dispatch(resetUserId());
-    setText(''); // Also clear the current input field in ChatForm
-
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto'; // Reset textarea height
-    }
-  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -43,6 +29,19 @@ const ChatForm = () => {
     }
   };
 
+  const handleClearChat = () => {
+    if (!input.trim()) {
+      dispatch(clearIfInputEmpty());
+    }
+    dispatch(resetSessionId());
+    dispatch(resetUserId());
+    setText(''); // Also clear the current input field in ChatForm
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'; // Reset textarea height
+    }
+  };
+
+  // Adjust textarea height and scroll to bottom of chat messages
   useEffect(() => {
     const adjustHeight = () => {
       if (textareaRef.current) {
@@ -98,6 +97,7 @@ const ChatForm = () => {
         rows={1} // Start with 1 row, height adjustment will handle more
         disabled={isResponding}
       />
+
       <button
         type='submit'
         className={`flex items-center justify-center w-10 h-10 rounded-md ${
