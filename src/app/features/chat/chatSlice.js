@@ -26,10 +26,11 @@ let getUserId = () => {
   return id;
 };
 
+// Function to clean the AI response text
 const cleanAiResponse = (text) => {
-  // Remove "JSON list of used source numbers:" and any trailing empty brackets "[]"
-  // at the end of the string. This regex matches "JSON list of used source numbers:"
-  // followed by optional whitespace (including newlines), then optionally followed by "[]",
+  if (!text) return text;
+  // Refined regex to match "JSON list of used source numbers:"
+  // with optional leading/trailing whitespace and line breaks,
   // and optionally followed by "[]" at the very end of the string.
   // This version is more flexible with newlines and spaces before and after.
   return text
@@ -46,7 +47,7 @@ export const sendQuestionToAPI = createAsyncThunk(
 
     const userName = 'Test User';
     // END - Change for userName here
-    const loginSessionId = 123456789;
+    const loginSessionId = "123456789"; // Changed from int to string
 
     console.log('Sending question to API:', question);
     console.log('Session ID:', sessionId);
@@ -63,7 +64,6 @@ export const sendQuestionToAPI = createAsyncThunk(
       content: question,
       timestamp: new Date().toISOString(),
     };
-
     dispatch(addMessage(userMessage));
 
     const placeholderId = Date.now() + 1;
@@ -75,8 +75,8 @@ export const sendQuestionToAPI = createAsyncThunk(
       citations: [], // Initialize citations for the placeholder
       timestamp: new Date().toISOString(),
     };
-
     dispatch(addMessage(placeholderMessage));
+    dispatch(setPendingMessageId(placeholderId));
 
     try {
       // Set isResponding to true when the API call starts
@@ -100,22 +100,25 @@ export const sendQuestionToAPI = createAsyncThunk(
 
       // Validate the new API response structure
       // Changed 'data.chunks' to 'data.citations' to match the new API structure
-      if (data.ai_response && Array.isArray(data.citations)) {
+      if (data?.ai_response && Array.isArray(data.citations)) {
+        // Clean the AI response text before storing
         const cleanedAiResponse = cleanAiResponse(data.ai_response);
-        console.log('Using cleaned AI response:', cleanedAiResponse);
 
         dispatch(
           updateMessageById({
             id: placeholderId,
-            updates: {
-              content: cleanedAiResponse, // Display the cleaned response
-              ai_response: cleanedAiResponse, // Store the cleaned response
-              citations: data.citations,
-              query: question, // Store the original query
-            },
+            content: cleanedAiResponse, // Keep 'content' for compatibility
+            ai_response: cleanedAiResponse, // Store the cleaned AI response
+            // Map the new 'citations' array to your message structure
+            citations: data.citations.map((citation) => ({
+              id: citation.id, // The ID from the API response for inline linking
+              title: citation.title,
+              chunk: citation.chunk, // 'chunk' contains the actual content
+              parent_id: citation.parent_id, // 'parent_id' is the PDF/source link
+            })),
+            query: data.query, // Store the query from the API response
           })
         );
-
         // Re-enable follow-ups logic
         if (data.follow_ups) {
           const followUpQuestions = data.follow_ups
@@ -123,13 +126,14 @@ export const sendQuestionToAPI = createAsyncThunk(
             .map((q) => q.trim())
             .filter(Boolean);
           dispatch(setFollowUps(followUpQuestions));
+        } else {
+          dispatch(setFollowUps([]));
         }
 
-        // New logging functionality - using try-catch to isolate any errors
         try {
           const logData = {
             chat_session_id: sessionId,
-            user_id: userId, // Use dynamic userId
+            user_id: userId,
             user_name: userName, // Use the user_name from auth slice
             query: question, // The original question
             ai_response: cleanedAiResponse,
@@ -154,20 +158,19 @@ export const sendQuestionToAPI = createAsyncThunk(
       dispatch(
         updateMessageById({
           id: placeholderId,
-          updates: {
-            content: 'Sorry, I encountered an error processing your request.',
-            ai_response: 'Sorry, I encountered an error processing your request.',
-            citations: [],
-          },
+          content: `Something went wrong: ${error.message}`,
+          ai_response: `Something went wrong: ${error.message}`, // Update ai_response with error
+          citations: [],
+          query: question, // Store the original question as query in case of error
         })
       );
       dispatch(setError(error.message));
     } finally {
-      // Always set isResponding to false, regardless of success or failure
+      dispatch(clearInput());
+      dispatch(setPendingMessageId(null));
+      // Set isResponding to false when the API call finishes (success or failure)
       dispatch(setIsResponding(false));
     }
-
-    return null;
   }
 );
 
@@ -180,7 +183,7 @@ export const submitFeedback = createAsyncThunk(
     
     //Updated 
     const userName = 'Test User';
-    const loginSessionId = 123456789;
+    const loginSessionId = "123456789"; // Changed from int to string
 
     const message = messages.find((msg) => msg.id === messageId);
     if (!message) {
@@ -258,11 +261,11 @@ const chatSlice = createSlice({
     setInput: (state, action) => {
       state.input = action.payload;
     },
-    setIsResponding: (state, action) => {
-      state.isResponding = action.payload;
+    setPreviewDocURL: (state, action) => {
+      state.previewDocURL = action.payload.url;
     },
-    setError: (state, action) => {
-      state.error = action.payload;
+    removePreviewDocURL: (state) => {
+      state.previewDocURL = null;
     },
     addMessage: (state, action) => {
       // Ensure that 'ai_response', 'citations', and 'query' are initialized for agent messages
@@ -287,22 +290,26 @@ const chatSlice = createSlice({
           timestamp: new Date().toISOString(),
         },
       ];
-      state.input = '';
+    },
+    setPendingMessageId: (state, action) => {
+      state.pendingMessageId = action.payload;
     },
     updateMessageById: (state, action) => {
-      const { id, updates } = action.payload;
-      const messageIndex = state.messages.findIndex(
-        (message) => message.id === id
-      );
-      if (messageIndex !== -1) {
-        state.messages[messageIndex] = {
-          ...state.messages[messageIndex],
-          ...updates,
+      // Destructure new fields: ai_response and query
+      const { id, content, ai_response, citations, query } = action.payload;
+      const index = state.messages.findIndex((msg) => msg.id === id);
+      if (index !== -1) {
+        state.messages[index] = {
+          ...state.messages[index],
+          content,
+          ai_response:
+            ai_response !== undefined
+              ? ai_response
+              : state.messages[index].ai_response, // Update ai_response
+          citations, // Update citations directly (as new format)
+          query: query !== undefined ? query : state.messages[index].query, // Update query
         };
       }
-    },
-    clearMessages: (state) => {
-      state.messages = [];
     },
     setFollowUps: (state, action) => {
       state.followUps = action.payload;
@@ -311,10 +318,13 @@ const chatSlice = createSlice({
       const { messageId, status } = action.payload;
       state.feedbackStatus[messageId] = status;
     },
-    resetError: (state) => {
-      state.error = null;
+    setIsResponding: (state, action) => {
+      state.isResponding = action.payload;
     },
-    clearSession: (state) => {
+    setError: (state, action) => {
+      state.error = action.payload;
+    },
+    clearChat: (state) => {
       state.messages = [];
       state.followUps = [];
       state.feedbackStatus = {};
@@ -328,15 +338,14 @@ const chatSlice = createSlice({
     },
     resetToWelcome: (state) => {
       state.messages = [];
-      state.followUps = [];
       state.feedbackStatus = {};
-      state.input = '';
-      state.error = null;
-      state.pendingMessageId = null;
       state.isResponding = false;
     },
     clearIfInputEmpty: (state) => {
       if (!state.input.trim()) {
+        state.messages = [];
+        state.followUps = [];
+        state.feedbackStatus = {};
         state.isResponding = false;
       }
     },
@@ -361,7 +370,7 @@ const chatSlice = createSlice({
   extraReducers: (builder) => {
     builder
       .addCase(sendQuestionToAPI.rejected, (state, action) => {
-        console.error('sendQuestionToAPI rejected:', action.error);
+        // Corrected error message to be more robust
         state.error =
           action.payload ||
           action.error.message ||
@@ -379,16 +388,17 @@ const chatSlice = createSlice({
 
 export const {
   setInput,
-  setIsResponding,
-  setError,
+  setPreviewDocURL,
+  removePreviewDocURL,
   addMessage,
   addPrompt,
+  setPendingMessageId,
   updateMessageById,
-  clearMessages,
   setFollowUps,
   setFeedbackStatus,
-  resetError,
-  clearSession,
+  setIsResponding,
+  setError,
+  clearChat,
   clearInput,
   resetToWelcome,
   clearIfInputEmpty,
